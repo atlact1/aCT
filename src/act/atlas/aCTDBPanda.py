@@ -49,7 +49,7 @@ class aCTDBPanda(aCTDB):
 
         str="""
         create table pandajobs (
-        id INTEGER PRIMARY KEY AUTO_INCREMENT,
+        id INTEGER PRIMARY KEY %s,
         modified TIMESTAMP,
         created TIMESTAMP,
         pandajob mediumtext,
@@ -70,23 +70,26 @@ class aCTDBPanda(aCTDB):
         eventranges mediumtext,
         corecount integer
     )
-"""
+""" % self.autoincrement()
+
         c=self.getCursor()
         try:
             c.execute("drop table pandajobs")
         except:
-            self.log.warning("no pandajobs table")
             pass
+
         try:
             c.execute(str)
             # add indexes
-            c.execute("ALTER TABLE pandajobs ADD INDEX (arcjobid)")
-            c.execute("ALTER TABLE pandajobs ADD INDEX (pandaid)")
-            c.execute("ALTER TABLE pandajobs ADD INDEX (pandastatus)")
-            c.execute("ALTER TABLE pandajobs ADD INDEX (actpandastatus)")
-        except Exception,x:
-            self.log.error("failed create table %s" %x)
-            pass
+            self.conn.commit()
+            self.addIndex('pandajobs', 'arcjobid')
+            self.addIndex('pandajobs', 'pandaid')
+            self.addIndex('pandajobs', 'pandastatus')
+            self.addIndex('pandajobs', 'actpandastatus')
+            self.autoupdate('pandajobs', 'modified', 'id')
+        except Exception as x:
+            self.log.error("failed to create table pandajobs: %s" % x)
+            return
         
         str="""
         create table pandaarchive (
@@ -97,19 +100,22 @@ class aCTDBPanda(aCTDB):
         endTime TIMESTAMP
     )
 """
-       
+        c = self.getCursor()       
         try:
             c.execute("drop table pandaarchive")
         except:
-            self.log.warning("no pandaarchive table")
             pass
+
         try:
             c.execute(str)
-        except Exception,x:
-            self.log.error("failed create table %s" %x)
-            pass
-        self.conn.commit()
-        
+            self.conn.commit()
+            self.addIndex('pandaarchive', 'pandaid')
+        except Exception as x:
+            self.log.error("failed to create table pandaarchive: %s" % x)
+            return
+
+        self.log.warning("Created panda tables")
+
 
     def insertJob(self,pandaid,pandajob,desc={}):
         desc['created']=self.getTimeStamp()
@@ -178,10 +184,10 @@ class aCTDBPanda(aCTDB):
         return rows
 
 if __name__ == '__main__':
-    import logging
-    from act.common import aCTConfig
-    logging.basicConfig(level=logging.DEBUG)
-
-    conf = aCTConfig.aCTConfigATLAS()
-    adb = aCTDBPanda(logging.getLogger(),dbname=conf.get(["db","file"]))
+    import logging, sys
+    log = logging.getLogger()
+    out = logging.StreamHandler(sys.stdout)
+    log.addHandler(out)
+    
+    adb = aCTDBPanda(log)
     adb.createTables()

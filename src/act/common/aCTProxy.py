@@ -1,4 +1,3 @@
-import logging
 import aCTConfig
 import datetime, time
 import arc
@@ -10,7 +9,7 @@ class aCTProxy:
     def __init__(self, logger, Interval=3600):
         self.interval = Interval
         self.conf=aCTConfig.aCTConfigARC()
-        self.db=aCTDBArc(logger, self.conf.get(["db","file"]))
+        self.db=aCTDBArc(logger)
         self.log = logger
         cred_type=arc.initializeCredentialsType(arc.initializeCredentialsType.SkipCredentials)
         self.uc=arc.UserConfig(cred_type)
@@ -164,14 +163,21 @@ class aCTProxy:
         return proxypath
 
 def test_aCTProxy():
-    p=aCTProxy(logging.getLogger(), 1)
+    import logging, sys
+    log = logging.getLogger()
+    log.setLevel(logging.DEBUG)
+    out = logging.StreamHandler(sys.stdout)
+    log.addHandler(out)
+
+    p=aCTProxy(log, 1)
     voms="atlas"
-    attribute="/atlas/Role=pilot"
+    attribute="/atlas/Role=production"
     proxypath=p.conf.get(["voms", "proxypath"])
     validTime=43200
-    proxyid = p.createVOMSAttribute(voms, "/atlas/Role=pilot", proxypath, validTime)
+    #proxyid = p.createVOMSAttribute(voms, "/atlas/Role=pilot", proxypath, validTime)
     proxyid = p.createVOMSAttribute(voms, "/atlas/Role=production", proxypath, validTime)
     dn = p.db.getProxiesInfo("id="+str(proxyid), ["dn"], expect_one=True)["dn"]
+
     print "dn=", dn
     print "path from dn,attribute lookup matches path from proxyid lookup:", 
     print p.path(dn=dn, attribute=attribute) == p.path(id=p.getProxyId(dn, attribute))

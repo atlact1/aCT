@@ -6,8 +6,8 @@ from act.common import aCTConfig
 
 class aCTDBArc(aCTDB):
     
-    def __init__(self,logger,dbname="aCTjobs.db"):
-        aCTDB.__init__(self, logger, dbname)
+    def __init__(self, logger):
+        aCTDB.__init__(self, logger)
 
         conf = aCTConfig.aCTConfigARC()
         self.proxydir=conf.get(["voms","proxystoredir"])
@@ -84,11 +84,10 @@ class aCTDBArc(aCTDB):
           - myproxyid: id from myproxy
           - expirytime: timestamp for when proxy is expiring
         '''
-        aCTDB.createTables(self)
         # in MySQL the first timestamp specified gets automatically updated to
         # current time for each change. 
         create="""CREATE TABLE arcjobs (
-            id INTEGER PRIMARY KEY AUTO_INCREMENT,
+            id INTEGER PRIMARY KEY %s,
             modified TIMESTAMP,
             created TIMESTAMP,
             arcstate VARCHAR(255),
@@ -103,14 +102,12 @@ class aCTDBArc(aCTDB):
             appjobid VARCHAR(255),
             priority SMALLINT,
             fairshare VARCHAR(255),
-            """+",".join(['%s %s' % (k, self.jobattrmap[v]) for k, v in self.jobattrs.items()])+")"
+            """ % self.autoincrement()
+        create += ",".join(['%s %s' % (k, self.jobattrmap[v]) for k, v in self.jobattrs.items()])+")"
             
         # First check if table already exists
         c = self.getCursor()
-        c.execute("show tables like 'arcjobs'")
-        row = c.fetchone()
-        self.conn.commit()
-        if row:
+        if self.tableExists('arcjobs'):
             answer = raw_input("Table arcjobs already exists!\nAre you sure you want to recreate it? (y/n) ")
             if answer != 'y':
                 return
@@ -120,46 +117,53 @@ class aCTDBArc(aCTDB):
         try:
             c.execute(create)
             self.conn.commit()
-        except Exception,x:
-            self.log.error("failed create table %s" %x)
+            # add indexes
+            self.addIndex('arcjobs', 'arcstate')
+            self.autoupdate('arcjobs', 'modified', 'id')
+        except Exception as x:
+            self.log.error("failed to create table arcjobs: %s" % x)
+            return
             
         # Create job description table
         create="""CREATE TABLE jobdescriptions (
-            id INTEGER PRIMARY KEY AUTO_INCREMENT,
+            id INTEGER PRIMARY KEY %s,
             jobdescription mediumtext)
-            """
-        try:
+            """ % self.autoincrement()
+
+        if self.tableExists('jobdescriptions'):
             c.execute("drop table jobdescriptions")
-        except:
-            pass
+
         try:
             c.execute(create)
-            # add indexes
-            c.execute("ALTER TABLE arcjobs ADD INDEX (arcstate)")
             self.conn.commit()
-        except Exception,x:
-            self.log.error("failed create table %s" %x)
+        except Exception as x:
+            self.log.error("failed to create table jobdescriptions: %s" % x)
+            return
             
         # Create proxies table (can be dropped without asking)
         self.log.info("creating proxies table")
         create="""CREATE TABLE proxies (
-            id INTEGER PRIMARY KEY AUTO_INCREMENT,
+            id INTEGER PRIMARY KEY %s,
             proxy BLOB,
-            expirytime DATETIME,
+            expirytime TIMESTAMP,
             proxypath VARCHAR(255),
             dn VARCHAR(255),
             attribute VARCHAR(255),
             proxytype VARCHAR(255),
-            myproxyid VARCHAR(255) )"""
-        try:
+            myproxyid VARCHAR(255) )"""  % self.autoincrement()
+        
+        if self.tableExists('proxies'):
             c.execute("drop table proxies")
-        except:
-            pass
+
         try:
             c.execute(create)
             self.conn.commit()
-        except Exception,x:
-            self.log.error("failed create table %s" %x)
+        except Exception as x:
+            self.log.error("failed to create table proxies: %s" % x)
+            return
+        
+        self.log.warning("Created arc tables")
+            
 
     def Commit(self, lock=False):
         if lock:
@@ -476,9 +480,7 @@ class aCTDBArc(aCTDB):
         s="INSERT INTO proxies (proxy, dn, attribute, proxytype, myproxyid, expirytime) VALUES ('"\
                   +proxy+"','"+dn+"','"+attribute+"','"+proxytype+"','"+myproxyid+"','"+expirytime+"')"
         c.execute(s)
-        c.execute("SELECT LAST_INSERT_ID()")
-        row = c.fetchone()
-        id=row['LAST_INSERT_ID()']
+        id = self.lastInsertID(c)
         proxypath=os.path.join(self.proxydir,"proxiesid"+str(id))
         c.execute("UPDATE proxies SET proxypath='"+proxypath+"' WHERE id="+str(id))
         self.conn.commit()
@@ -558,37 +560,6 @@ if __name__ == '__main__':
     log = logging.getLogger()
     out = logging.StreamHandler(sys.stdout)
     log.addHandler(out)
-    
-    conf = aCTConfig.aCTConfigARC()
-    
-    adb = aCTDBArc(log, dbname=conf.get(["db","file"]))
-    adb.createTables()
 
-    usercfg = arc.UserConfig("", "")
-    usercfg.Timeout(10)
-    
-    # Simple job description which outputs hostname to stdout
-    jobdescstring = "&(executable=/bin/hostname)(stdout=stdout)"
-    
-    # Parse job description
-    jobdescs = arc.JobDescriptionList()
-    if not arc.JobDescription_Parse(jobdescstring, jobdescs):
-        logging.error("Invalid job description")
-        exit(1)
-    
-    # Use top-level NorduGrid information index to find resources
-    index = arc.Endpoint("ldap://index1.nordugrid.org:2135/Mds-Vo-name=nordugrid,o=grid",
-                         arc.Endpoint.REGISTRY,
-                         "org.nordugrid.ldapegiis")
-    services = arc.EndpointList(1, index)
-    
-    # Do the submission
-    #jobs = arc.JobList()
-    #submitter = arc.Submitter(usercfg)
-    #if submitter.BrokeredSubmit(services, jobdescs, jobs) != arc.SubmissionStatus.NONE:
-    #    logging.error("Failed to submit job")
-    #    exit(1)
-     
-    #adb.insertArcJob(1, jobs[0])
-    #dbjob = adb.getArcJob(1)
-    #print dbjob[1].JobID, dbjob[1].State.GetGeneralState()
+    adb = aCTDBArc(log)
+    adb.createTables()

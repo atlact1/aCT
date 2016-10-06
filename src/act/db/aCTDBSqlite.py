@@ -11,7 +11,7 @@ class aCTDBSqlite(object):
     
     def __init__(self,logger):
         try:
-            self.conn=sqlite.connect(self.dbname,1800)
+            self.conn=sqlite.connect(self.file, 1800, detect_types=sqlite.PARSE_DECLTYPES)
         except Exception, x:
             raise Exception, "Could not connect to sqlite: " + str(x)
         self.conn.row_factory=dict_factory
@@ -26,6 +26,35 @@ class aCTDBSqlite(object):
 
     def timeStampGreaterThan(self,column,timediff):
         return "datetime("+column+") > datetime('now', '-"+str(timediff)+" seconds')"
+
+    def tableExists(self, tablename):
+        c = self.getCursor()
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' and name=?", (tablename,))
+        row = c.fetchone()
+        self.log.info(row)
+        return row
+
+    def autoincrement(self):
+        return ''
+
+    def autoupdate(self, tablename, column, uniqueid):
+        c = self.getCursor()
+        q = '''CREATE TRIGGER {t}_{c} 
+                AFTER UPDATE ON {t}
+                FOR EACH ROW BEGIN 
+                UPDATE {t} SET {c} = CURRENT_TIMESTAMP 
+                WHERE {id} = old.{id};
+                END'''.format(t=tablename, c=column, id=uniqueid)
+        c.execute(q)
+        self.conn.commit()
+         
+    def addIndex(self, tablename, index):
+        c = self.getCursor()
+        c.execute("CREATE INDEX {t}_{i} on {t} ({i})".format(t=tablename, i=index))
+        self.conn.commit()
+
+    def lastInsertID(self, cursor):
+        return cursor.lastrowid
 
     def addLock(self):
         # SQLite does not support row locking

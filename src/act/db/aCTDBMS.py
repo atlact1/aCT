@@ -24,14 +24,13 @@ dbtype=config.get(('db', 'type')).lower()
 class aCTDBMS(supported_dbms[dbtype]):
     """Class for generic DB Mgmt System db operations. Inherit specifics from its speciallized superclass depending on configured dbtype."""
     
-    def __init__(self,logger,dbname="act"):
+    def __init__(self, logger):
         self.log=logger
-        self.dbname=dbname
         # TODO: Find more generic way to get db config vars
-        self.dbtype=dbtype
-        if self.dbtype=='sqlite':
+        if dbtype=='sqlite':
+            self.file=str(config.get(('db', 'file')))
             aCTDBSqlite.__init__(self, logger)
-        elif self.dbtype=='mysql':
+        elif dbtype=='mysql':
             self.socket=str(config.get(('db', 'socket')))
             self.dbname=str(config.get(('db', 'name')))
             self.user=str(config.get(('db', 'user')))
@@ -39,10 +38,10 @@ class aCTDBMS(supported_dbms[dbtype]):
             self.host=str(config.get(('db', 'host')))
             self.port=str(config.get(('db', 'port')))
             aCTDBMySQL.__init__(self, logger)
-        elif self.dbtype=='oracle':
+        elif dbtype=='oracle':
             aCTDBOracle.__init__(self, logger)
         else:
-            raise Exception, "DB type %s is not implemented."%self.dbtype
+            raise Exception, "DB type %s is not implemented."%dbtype
 
     def getCursor(self):
         return super(aCTDBMS, self).getCursor()

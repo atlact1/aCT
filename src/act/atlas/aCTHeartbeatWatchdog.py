@@ -1,6 +1,5 @@
 # Tool for updating heartbeats when the main process has failed.
 
-from act.common.aCTConfig import aCTConfigATLAS
 from act.common.aCTLogger import aCTLogger
 from act.arc.aCTDBArc import aCTDBArc
 from aCTDBPanda import aCTDBPanda
@@ -17,11 +16,9 @@ timelimit = int(sys.argv[1])
 # logger
 logger = aCTLogger('aCTHeartbeatWatchdog')
 log = logger()
-# config
-conf = aCTConfigATLAS()
 # database
-dbarc = aCTDBArc(log, conf.get(["db","file"]))
-dbpanda = aCTDBPanda(log, conf.get(["db","file"]))
+dbarc = aCTDBArc(log)
+dbpanda = aCTDBPanda(log)
 
 # Query for running jobs with theartbeat longer than timelimit seconds ago
 select = "sendhb=1 and " \

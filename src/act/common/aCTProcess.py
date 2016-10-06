@@ -34,7 +34,7 @@ class aCTProcess:
         # config
         self.conf=aCTConfig.aCTConfigARC()
         # database
-        self.db=aCTDBArc.aCTDBArc(self.log,self.conf.get(["db","file"]))
+        self.db=aCTDBArc.aCTDBArc(self.log)
         
         # ARC Configuration
         # Credentials will be set by ARC agents for each job or set of jobs

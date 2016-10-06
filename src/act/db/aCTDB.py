@@ -3,9 +3,9 @@ from aCTDBMS import aCTDBMS
 
 class aCTDB(aCTDBMS):
 
-    def __init__(self,logger,dbname="aCTjobs.db"):
+    def __init__(self, logger):
         # inherit DB Mgmt System from aCTDBMS
-        aCTDBMS.__init__(self, logger, dbname)
+        aCTDBMS.__init__(self, logger)
     
     def _column_list2str(self,columns):
         s=""

@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import aCTConfig
 import re
 import subprocess
 import aCTLogger
@@ -10,14 +9,11 @@ from act.atlas import aCTDBPanda
 class aCTStatus:
     
     def __init__(self):
-        self.conf=aCTConfig.aCTConfigARC()
         self.logger=aCTLogger.aCTLogger("aCTReport")
         self.log=self.logger()
 
-
-        #self.db=aCTDB.aCTDB(None,self.conf.get(["db","file"]))
-        self.db=aCTDBArc.aCTDBArc(self.log,self.conf.get(["db","file"]))
-        self.pandadb=aCTDBPanda.aCTDBPanda(self.log,self.conf.get(["db","file"]))
+        self.db=aCTDBArc.aCTDBArc(self.log)
+        self.pandadb=aCTDBPanda.aCTDBPanda(self.log)
 
     def ProcessReport(self):
         actprocscmd = 'ps ax -ww -o etime,args'

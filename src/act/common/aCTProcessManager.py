@@ -13,11 +13,10 @@ class aCTProcessManager:
         
         # logger
         self.log = log
-        self.conf = conf
         self.actlocation = conf.get(["actlocation","dir"])
-        self.logdir = self.conf.get(["logger", "logdir"])
+        self.logdir = conf.get(["logger", "logdir"])
         # DB connection
-        self.db = aCTDBArc.aCTDBArc(self.log, self.conf.get(["db","file"]))
+        self.db = aCTDBArc.aCTDBArc(self.log)
         # list of processes to run per cluster
         self.processes = ['act/arc/aCTStatus', 'act/arc/aCTFetcher', 'act/arc/aCTCleaner']
         # submitter process
@@ -70,7 +69,7 @@ class aCTProcessManager:
             del self.db
         except AttributeError: # Already deleted
             pass
-        self.db = aCTDBArc.aCTDBArc(self.log, self.conf.get(["db", "file"]))
+        self.db = aCTDBArc.aCTDBArc(self.log)
  
 
     def checkClusters(self):

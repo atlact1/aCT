@@ -43,9 +43,33 @@ class aCTDBMySQL(object):
     
     def timeStampGreaterThan(self,column,timediff):
         return "UNIX_TIMESTAMP("+column+") > UNIX_TIMESTAMP(UTC_TIMESTAMP()) - "+str(timediff)
+
+    def tableExists(self, tablename):
+        c = self.getCursor()
+        c.execute("show tables like 'arcjobs'")
+        row = c.fetchone()
+        self.conn.commit()
+        return row
+
+    def autoincrement(self):
+        return "AUTO_INCREMENT"
     
+    def autoupdate(self, tablename, column, uniqueid):
+        # MySQL automatically updates first timestamp column
+        pass
+
+    def addIndex(self, tablename, index):
+        c = self.getCursor()
+        c.execute("ALTER TABLE %s ADD INDEX (%s)" % (tablename, index))
+        self.conn.commit()
+
     def addLock(self):
         return " FOR UPDATE"
+    
+    def lastInsertID(self, cursor):
+        cursor.execute("SELECT LAST_INSERT_ID()")
+        row = cursor.fetchone()
+        return row['LAST_INSERT_ID()']
 
     def getMutexLock(self, lock_name, timeout=2):
         """
