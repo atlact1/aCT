@@ -89,7 +89,7 @@ class aCTDBArc(aCTDB):
         create="""CREATE TABLE arcjobs (
             id INTEGER PRIMARY KEY %s,
             modified TIMESTAMP,
-            created TIMESTAMP,
+            created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             arcstate VARCHAR(255),
             tarcstate TIMESTAMP,
             tstate TIMESTAMP,
@@ -177,20 +177,13 @@ class aCTDBArc(aCTDB):
         '''
         Add new arc Job object. Only used for testing and recreating db.
         '''
-        c=self.getCursor()
-        jobdesc = str(job.JobDescriptionDocument)
-        s = "insert into jobdescriptions (jobdescription) values (%s)"
-        c.execute(s, [jobdesc])
-        c.execute("SELECT LAST_INSERT_ID()")
-        jobdescid = c.fetchone()['LAST_INSERT_ID()']
-        
-        j = self._job2db(job)
-        c.execute("insert into arcjobs (created,tstate,jobdesc"+",".join(j.keys())+") values ('"+str(self.getTimeStamp())+"','"+str(self.getTimeStamp())+"','"+str(jobdescid)+"','"+"','".join(j.values())+"')")
-        c.execute("SELECT LAST_INSERT_ID()")
-        row = c.fetchone()
-        self.conn.commit()
-        return row
+        jobdesc = {'jobdescription': str(job.JobDescriptionDocument)}
+        jobdescid = self.insertRow('jobdescriptions', jobdesc)
 
+        j = self._job2db(job)
+        j['tstate'] = str(self.getTimeStamp())
+        j['jobdesc'] = jobdescid        
+        return self.insertRow('arcjobs', j)
 
     def insertArcJobDescription(self, jobdesc, proxyid='', maxattempts=0, clusterlist='', appjobid='', downloadfiles='', fairshare=''):
         '''
@@ -207,18 +200,12 @@ class aCTDBArc(aCTDB):
             priority = 50
 
         # todo: find some useful default for proxyid
-        c=self.getCursor()
-        
-        s = "insert into jobdescriptions (jobdescription) values (%s)"
-        c.execute(s, [jobdesc])
-        c.execute("SELECT LAST_INSERT_ID()")
-        jobdescid = c.fetchone()['LAST_INSERT_ID()']
+        jobdescid = self.insertRow('jobdescriptions', {'jobdescription': jobdesc})
         
         desc = {}
-        desc['created'] = self.getTimeStamp()
         desc['arcstate'] = "tosubmit"
-        desc['tarcstate']  = desc['created']
-        desc['tstate'] = desc['created']
+        desc['tarcstate']  = self.getTimeStamp()
+        desc['tstate'] = desc['tarcstate']
         desc['cluster']  = ''
         desc['clusterlist'] = clusterlist
         desc['jobdesc'] = jobdescid
@@ -228,14 +215,8 @@ class aCTDBArc(aCTDB):
         desc['downloadfiles'] = downloadfiles
         desc['priority'] = priority
         desc['fairshare'] = fairshare
-        s="insert into arcjobs" + " ( " + ",".join(['%s' % (k) for k in desc.keys()]) + " ) " + " values " + \
-            " ( " + ",".join(['%s' % (k) for k in ["%s"] * len(desc.keys()) ]) + " ) "
-        c.execute(s,desc.values())
-        c.execute("SELECT LAST_INSERT_ID()")
-        row = c.fetchone()
-        self.conn.commit()
-        return row
-        
+
+        return self.insertRow('arcjobs', desc)
 
     def deleteArcJob(self, id):
         '''
@@ -262,11 +243,6 @@ class aCTDBArc(aCTDB):
         Update arc job fields specified in desc and fields represented by arc
         Job if job is specified. Does not commit after executing update.
         '''
-        desc['modified']=self.getTimeStamp()
-        s = "update arcjobs set " + ",".join(['%s=%%s' % (k) for k in desc.keys()])
-        if job:
-            s += "," + ",".join(['%s=%%s' % (k) for k in self._job2db(job).keys()])
-        s+=" where id="+str(id)
         c=self.getCursor()
         c.execute("select id from arcjobs where id="+str(id))
         row=c.fetchone()
@@ -275,10 +251,11 @@ class aCTDBArc(aCTDB):
                 self.log.warning("Arc job id %d no longer exists" % id)
                 return
             self.insertArcJob(job)
+        
+        desc['modified']=self.getTimeStamp()
         if job:
-            c.execute(s,desc.values() + self._job2db(job).values() )
-        else:
-            c.execute(s,desc.values())
+            desc.extend(self._job2db(job))
+        self.updateRow('arcjobs', desc, 'id=%s' % id)
 
     def updateArcJobs(self, desc, select):
         '''
@@ -293,10 +270,7 @@ class aCTDBArc(aCTDB):
         Does not commit after executing update.
         '''
         desc['modified']=self.getTimeStamp()
-        s = "update arcjobs set " + ",".join(['%s=%%s' % (k) for k in desc.keys()])
-        s+=" where "+select
-        c=self.getCursor()
-        c.execute(s,desc.values())
+        self.updateRow('arcjobs', desc, select)
 
     def getArcJobInfo(self,id,columns=[]):
         '''
@@ -330,7 +304,6 @@ class aCTDBArc(aCTDB):
         '''
         c=self.getCursor()
         if lock:
-            #select += self.addLock()
             res = self.getMutexLock('arcjobs', timeout=2)
             if not res:
                 self.log.debug("Could not get lock: %s"%str(res))
@@ -528,14 +501,11 @@ class aCTDBArc(aCTDB):
         except Exception, x:
             self.log.error("Could not find proxyid in proxies table. %s", x)
         
-    def getProxiesInfo(self, select, columns=[], lock=False, expect_one=False):
+    def getProxiesInfo(self, select, columns=[], expect_one=False):
         '''
         Return a list of column: value dictionaries for proxies matching select.
-        If lock is True the row will be locked if possible. If expect_one is true
-        only one row will be returned.
+        If expect_one is true only one row will be returned.
         '''
-        if lock:
-            select += self.addLock()
         c=self.getCursor()
         c.execute("SELECT "+self._column_list2str(columns)+" FROM proxies WHERE "+select)
         if expect_one:

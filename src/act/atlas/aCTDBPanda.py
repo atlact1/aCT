@@ -51,7 +51,7 @@ class aCTDBPanda(aCTDB):
         create table pandajobs (
         id INTEGER PRIMARY KEY %s,
         modified TIMESTAMP,
-        created TIMESTAMP,
+        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         pandajob mediumtext,
         pandaid bigint, 
         siteName VARCHAR(255),

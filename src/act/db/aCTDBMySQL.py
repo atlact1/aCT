@@ -63,13 +63,26 @@ class aCTDBMySQL(object):
         c.execute("ALTER TABLE %s ADD INDEX (%s)" % (tablename, index))
         self.conn.commit()
 
-    def addLock(self):
-        return " FOR UPDATE"
-    
     def lastInsertID(self, cursor):
         cursor.execute("SELECT LAST_INSERT_ID()")
         row = cursor.fetchone()
         return row['LAST_INSERT_ID()']
+
+    def insertRow(self, tablename, attributes):
+        c = self.getCursor()
+        c.execute("INSERT INTO %s (%s) VALUES (%s)" %
+                   (tablename, ','.join([k for k in attributes.keys()]),
+                    ','.join(['%%s' for v in attributes.values])),
+                  attributes.values())
+        id = self.lastInsertID(c)
+        self.conn.commit()
+        return id
+
+    def updateRow(self, tablename, attributes, whereclause):
+        c = self.getCursor()
+        c.execute("UPDATE %s SET %s where %s" % 
+                  (tablename, ",".join(['%s=%%s' % (k) for k in attributes.keys()]), whereclause),
+                  attributes.values())
 
     def getMutexLock(self, lock_name, timeout=2):
         """

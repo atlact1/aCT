@@ -15,9 +15,6 @@ class aCTDBOracle(object):
         # should definitely be tested...
         return "(SYSDATE - TO_DATE('01-JAN-1970','DD-MON-YYYY')) * (86400)"
 
-    def addLock(self):
-        return " FOR UPDATE"
-
     def getMutexLock(self, lock_name, timeout=2):
         """
         Function to get named lock. Returns 1 if lock was obtained, 0 if attempt timed out, None if error occured.

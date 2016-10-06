@@ -8,7 +8,7 @@ from act.common.aCTLogger import aCTLogger
 logger = aCTLogger('acttest', cluster='test')
 log = logger()
 
-db = aCTDBArc(log, "act")
+db = aCTDBArc(log)
 
 xrsl = '''&(executable=/bin/sleep)
            (arguments=1)
@@ -16,9 +16,9 @@ xrsl = '''&(executable=/bin/sleep)
            (rerun=2)
            (gmlog=gmlog)
            (*inputfiles = (file1 "srm://srm.ndgf.org:8443;cache=no/atlas/disk/atlasdatadisk/rucio/mc15_13TeV/fe/a0/AOD.07849074._019904.pool.root.1")*)
-           (outputfiles = (stdout gsiftp://pcoslo5.cern.ch/bla/file1))
+           (outputfiles = (stdout gsiftp://pcoslo5.cern.ch/files/file1))
            '''
-p=aCTProxy(logging.getLogger(), 1)
+p=aCTProxy(log)
 voms="atlas"
 attribute="" # e.g. attribute="/atlas/Role=production"
 proxypath=p.conf.get(["voms", "proxypath"])

@@ -29,7 +29,7 @@ class aCTDBSqlite(object):
 
     def tableExists(self, tablename):
         c = self.getCursor()
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' and name=?", (tablename,))
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (tablename,))
         row = c.fetchone()
         self.log.info(row)
         return row
@@ -50,20 +50,32 @@ class aCTDBSqlite(object):
          
     def addIndex(self, tablename, index):
         c = self.getCursor()
-        c.execute("CREATE INDEX {t}_{i} on {t} ({i})".format(t=tablename, i=index))
+        c.execute("CREATE INDEX {t}_{i} ON {t} ({i})".format(t=tablename, i=index))
         self.conn.commit()
 
     def lastInsertID(self, cursor):
         return cursor.lastrowid
-
-    def addLock(self):
-        # SQLite does not support row locking
-        return ""
-
-    def getMutexLock(self):
-        # SQLite does not support mutex locking
-        return
     
-    def releaseMutexLock(self):
-        # SQLite does not support mutex locking
-        return
+    def insertRow(self, tablename, attributes):
+        c = self.getCursor()
+        c.execute("INSERT INTO %s (%s) VALUES (%s)" %
+                   (tablename, ','.join([k for k in attributes.keys()]),
+                    ','.join(['?' for v in attributes.values()])),
+                  attributes.values())
+        id = self.lastInsertID(c)
+        self.conn.commit()
+        return id
+    
+    def updateRow(self, tablename, attributes, whereclause):
+        c = self.getCursor()
+        c.execute("UPDATE %s SET %s where %s" % 
+                  (tablename, ",".join(['%s=?' % (k) for k in attributes.keys()]), whereclause),
+                  attributes.values())
+
+    def getMutexLock(self, lock_name, timeout=2):
+        # TODO: add file-level locking, or ensure that processes do not compete
+        # for the same row (i.e. submitters on jobs with multiple CEs
+        return 1
+    
+    def releaseMutexLock(self, lock_name):
+        return 1

@@ -52,9 +52,6 @@ class aCTDBMS(supported_dbms[dbtype]):
     def timeStampGreaterThan(self,column,timediff):
         return super(aCTDBMS, self).timeStampGreaterThan(column,timediff)
 
-    def addLock(self):
-        return super(aCTDBMS, self).addLock()
-
     def getMutexLock(self, lock_name, timeout=2):
         return super(aCTDBMS, self).getMutexLock(lock_name, timeout)
 
